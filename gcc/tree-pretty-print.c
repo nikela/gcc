@@ -554,6 +554,9 @@ dump_omp_clause (pretty_printer *pp, tree clause, int spc, dump_flags_t flags)
 	case OMP_CLAUSE_SCHEDULE_AUTO:
 	  pp_string (pp, "auto");
 	  break;
+	case OMP_CLAUSE_SCHEDULE_HIERARCHICAL:
+	  pp_string (pp, "hierarchical");
+	  break;
 	default:
 	  gcc_unreachable ();
 	}

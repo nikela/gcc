@@ -31,8 +31,20 @@ along with GCC; see the file COPYING3.  If not see
     DEFPARAMENUMVAL (ENUM, V4),					\
     DEFPARAMENUMTERM (ENUM)					\
   };
+#define DEFPARAMENUM6(ENUM, OPTION, HELP, DEFAULT, V0, V1, V2, V3, V4, V5)	\
+  enum DEFPARAMENUMNAME (ENUM)					\
+  {								\
+    DEFPARAMENUMVAL (ENUM, V0),					\
+    DEFPARAMENUMVAL (ENUM, V1),					\
+    DEFPARAMENUMVAL (ENUM, V2),					\
+    DEFPARAMENUMVAL (ENUM, V3),					\
+    DEFPARAMENUMVAL (ENUM, V4),					\
+    DEFPARAMENUMVAL (ENUM, V5),					\
+    DEFPARAMENUMTERM (ENUM)					\
+  };
 #include "params.def"
 #undef DEFPARAMENUM5
+#undef DEFPARAMENUM6
 #undef DEFPARAMENUMTERM
 #undef DEFPARAMENUMVAL
 #undef DEFPARAMENUMNAME

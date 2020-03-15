@@ -13952,6 +13952,7 @@ c_finish_omp_clauses (tree clauses, enum c_omp_region_type ort)
 		case OMP_CLAUSE_SCHEDULE_GUIDED: break;
 		case OMP_CLAUSE_SCHEDULE_AUTO: p = "auto"; break;
 		case OMP_CLAUSE_SCHEDULE_RUNTIME: p = "runtime"; break;
+		case OMP_CLAUSE_SCHEDULE_HIERARCHICAL: p = "hierarchical"; break;
 		default: gcc_unreachable ();
 		}
 	      if (p)

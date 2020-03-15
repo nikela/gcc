@@ -224,8 +224,13 @@ omp_extract_for_data (gomp_for *for_stmt, struct omp_for_data *fd,
 	 static loops and dynamic loops.  */
       if (fd->sched_kind != OMP_CLAUSE_SCHEDULE_STATIC
 	  || fd->have_ordered)
-	fd->chunk_size = (fd->sched_kind == OMP_CLAUSE_SCHEDULE_STATIC)
+      {
+	// fd->chunk_size = (fd->sched_kind == OMP_CLAUSE_SCHEDULE_STATIC)
+			 // ? integer_zero_node : integer_one_node;
+	/* Extension */
+	fd->chunk_size = ((fd->sched_kind == OMP_CLAUSE_SCHEDULE_STATIC) || (fd->sched_kind == OMP_CLAUSE_SCHEDULE_HIERARCHICAL))
 			 ? integer_zero_node : integer_one_node;
+      }
     }
 
   int cnt = fd->ordered ? fd->ordered : fd->collapse;

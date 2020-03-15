@@ -13034,6 +13034,12 @@ c_parser_omp_clause_schedule (c_parser *parser, tree list)
 	  OMP_CLAUSE_SCHEDULE_KIND (c) = OMP_CLAUSE_SCHEDULE_GUIDED;
 	  break;
 
+	case 'h':
+	  if (strcmp ("hierarchical", p) != 0)
+	    goto invalid_kind;
+	  OMP_CLAUSE_SCHEDULE_KIND (c) = OMP_CLAUSE_SCHEDULE_HIERARCHICAL;
+	  break;
+
 	case 'r':
 	  if (strcmp ("runtime", p) != 0)
 	    goto invalid_kind;

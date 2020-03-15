@@ -42,8 +42,11 @@ static bool params_finished;
 #define DEFPARAM(ENUM, OPTION, HELP, DEFAULT, MIN, MAX)
 #define DEFPARAMENUM5(ENUM, OPTION, HELP, DEFAULT, V0, V1, V2, V3, V4)	\
   static const char *values_ ## ENUM [] = { #V0, #V1, #V2, #V3, #V4, NULL };
+#define DEFPARAMENUM6(ENUM, OPTION, HELP, DEFAULT, V0, V1, V2, V3, V4, V5)	\
+  static const char *values_ ## ENUM [] = { #V0, #V1, #V2, #V3, #V4, #V5, NULL };
 #include "params.def"
 #undef DEFPARAMENUM5
+#undef DEFPARAMENUM6
 #undef DEFPARAM
 
 static const param_info lang_independent_params[] = {
@@ -52,9 +55,13 @@ static const param_info lang_independent_params[] = {
 #define DEFPARAMENUM5(ENUM, OPTION, HELP, DEFAULT,	     \
 		      V0, V1, V2, V3, V4)		     \
   { OPTION, (int)ENUM ## _KIND_ ## DEFAULT, 0, 4, HELP, values_ ## ENUM },
+#define DEFPARAMENUM6(ENUM, OPTION, HELP, DEFAULT,	     \
+		      V0, V1, V2, V3, V4, V5)		     \
+  { OPTION, (int)ENUM ## _KIND_ ## DEFAULT, 0, 5, HELP, values_ ## ENUM },
 #include "params.def"
 #undef DEFPARAM
 #undef DEFPARAMENUM5
+#undef DEFPARAMENUM6
   { NULL, 0, 0, 0, NULL, NULL }
 };
 

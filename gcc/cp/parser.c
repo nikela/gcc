@@ -32882,6 +32882,12 @@ cp_parser_omp_clause_schedule (cp_parser *parser, tree list, location_t location
 	  OMP_CLAUSE_SCHEDULE_KIND (c) = OMP_CLAUSE_SCHEDULE_RUNTIME;
 	  break;
 
+	case 'h':
+	  if (strcmp ("hierarchical", p) != 0)
+	    goto invalid_kind;
+	  OMP_CLAUSE_SCHEDULE_KIND (c) = OMP_CLAUSE_SCHEDULE_HIERARCHICAL;
+	  break;
+
 	default:
 	  goto invalid_kind;
 	}

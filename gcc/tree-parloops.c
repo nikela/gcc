@@ -2179,6 +2179,9 @@ create_parallel_loop (struct loop *loop, tree loop_fn, tree data,
 	case PARAM_PARLOOPS_SCHEDULE_KIND_guided:
 	  OMP_CLAUSE_SCHEDULE_KIND (t) = OMP_CLAUSE_SCHEDULE_GUIDED;
 	  break;
+	case PARAM_PARLOOPS_SCHEDULE_KIND_hierarchical:
+	  OMP_CLAUSE_SCHEDULE_KIND (t) = OMP_CLAUSE_SCHEDULE_HIERARCHICAL;
+	  break;
 	case PARAM_PARLOOPS_SCHEDULE_KIND_auto:
 	  OMP_CLAUSE_SCHEDULE_KIND (t) = OMP_CLAUSE_SCHEDULE_AUTO;
 	  chunk_size = 0;

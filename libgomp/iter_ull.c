@@ -31,6 +31,10 @@
 
 typedef unsigned long long gomp_ull;
 
+#define HIER_ULL
+#include "hierarchical_schedule/iter_hierarchical.h"
+#undef HIER_ULL
+
 /* This function implements the STATIC scheduling method.  The caller should
    iterate *pstart <= x < *pend.  Return zero if there are more iterations
    to perform; nonzero if not.  Return less than 0 if this thread had
@@ -39,106 +43,107 @@ typedef unsigned long long gomp_ull;
 int
 gomp_iter_ull_static_next (gomp_ull *pstart, gomp_ull *pend)
 {
-  struct gomp_thread *thr = gomp_thread ();
-  struct gomp_team *team = thr->ts.team;
-  struct gomp_work_share *ws = thr->ts.work_share;
-  unsigned long nthreads = team ? team->nthreads : 1;
+	PRINT_DEBUG("IN");
+	struct gomp_thread *thr = gomp_thread ();
+	struct gomp_team *team = thr->ts.team;
+	struct gomp_work_share *ws = thr->ts.work_share;
+	unsigned long nthreads = team ? team->nthreads : 1;
 
-  if (thr->ts.static_trip == -1)
-    return -1;
+	if (thr->ts.static_trip == -1)
+		return -1;
 
-  /* Quick test for degenerate teams and orphaned constructs.  */
-  if (nthreads == 1)
-    {
-      *pstart = ws->next_ull;
-      *pend = ws->end_ull;
-      thr->ts.static_trip = -1;
-      return ws->next_ull == ws->end_ull;
-    }
-
-  /* We interpret chunk_size zero as "unspecified", which means that we
-     should break up the iterations such that each thread makes only one
-     trip through the outer loop.  */
-  if (ws->chunk_size_ull == 0)
-    {
-      gomp_ull n, q, i, t, s0, e0, s, e;
-
-      if (thr->ts.static_trip > 0)
-	return 1;
-
-      /* Compute the total number of iterations.  */
-      if (__builtin_expect (ws->mode, 0) == 0)
-	n = (ws->end_ull - ws->next_ull + ws->incr_ull - 1) / ws->incr_ull;
-      else
-	n = (ws->next_ull - ws->end_ull - ws->incr_ull - 1) / -ws->incr_ull;
-      i = thr->ts.team_id;
-
-      /* Compute the "zero-based" start and end points.  That is, as
-	 if the loop began at zero and incremented by one.  */
-      q = n / nthreads;
-      t = n % nthreads;
-      if (i < t)
+	/* Quick test for degenerate teams and orphaned constructs.  */
+	if (nthreads == 1)
 	{
-	  t = 0;
-	  q++;
-	}
-      s0 = q * i + t;
-      e0 = s0 + q;
-
-      /* Notice when no iterations allocated for this thread.  */
-      if (s0 >= e0)
-	{
-	  thr->ts.static_trip = 1;
-	  return 1;
+		*pstart = ws->next_ull;
+		*pend = ws->end_ull;
+		thr->ts.static_trip = -1;
+		return ws->next_ull == ws->end_ull;
 	}
 
-      /* Transform these to the actual start and end numbers.  */
-      s = s0 * ws->incr_ull + ws->next_ull;
-      e = e0 * ws->incr_ull + ws->next_ull;
+	/* We interpret chunk_size zero as "unspecified", which means that we
+	   should break up the iterations such that each thread makes only one
+	   trip through the outer loop.  */
+	if (ws->chunk_size_ull == 0)
+	{
+		gomp_ull n, q, i, t, s0, e0, s, e;
 
-      *pstart = s;
-      *pend = e;
-      thr->ts.static_trip = (e0 == n ? -1 : 1);
-      return 0;
-    }
-  else
-    {
-      gomp_ull n, s0, e0, i, c, s, e;
+		if (thr->ts.static_trip > 0)
+			return 1;
 
-      /* Otherwise, each thread gets exactly chunk_size iterations
-	 (if available) each time through the loop.  */
+		/* Compute the total number of iterations.  */
+		if (__builtin_expect (ws->mode, 0) == 0)
+			n = (ws->end_ull - ws->next_ull + ws->incr_ull - 1) / ws->incr_ull;
+		else
+			n = (ws->next_ull - ws->end_ull - ws->incr_ull - 1) / -ws->incr_ull;
+		i = thr->ts.team_id;
 
-      if (__builtin_expect (ws->mode, 0) == 0)
-	n = (ws->end_ull - ws->next_ull + ws->incr_ull - 1) / ws->incr_ull;
-      else
-	n = (ws->next_ull - ws->end_ull - ws->incr_ull - 1) / -ws->incr_ull;
-      i = thr->ts.team_id;
-      c = ws->chunk_size_ull;
+		/* Compute the "zero-based" start and end points.  That is, as
+		   if the loop began at zero and incremented by one.  */
+		q = n / nthreads;
+		t = n % nthreads;
+		if (i < t)
+		{
+			t = 0;
+			q++;
+		}
+		s0 = q * i + t;
+		e0 = s0 + q;
 
-      /* Initial guess is a C sized chunk positioned nthreads iterations
-	 in, offset by our thread number.  */
-      s0 = (thr->ts.static_trip * (gomp_ull) nthreads + i) * c;
-      e0 = s0 + c;
+		/* Notice when no iterations allocated for this thread.  */
+		if (s0 >= e0)
+		{
+			thr->ts.static_trip = 1;
+			return 1;
+		}
 
-      /* Detect overflow.  */
-      if (s0 >= n)
-	return 1;
-      if (e0 > n)
-	e0 = n;
+		/* Transform these to the actual start and end numbers.  */
+		s = s0 * ws->incr_ull + ws->next_ull;
+		e = e0 * ws->incr_ull + ws->next_ull;
 
-      /* Transform these to the actual start and end numbers.  */
-      s = s0 * ws->incr_ull + ws->next_ull;
-      e = e0 * ws->incr_ull + ws->next_ull;
+		*pstart = s;
+		*pend = e;
+		thr->ts.static_trip = (e0 == n ? -1 : 1);
+		return 0;
+	}
+	else
+	{
+		gomp_ull n, s0, e0, i, c, s, e;
 
-      *pstart = s;
-      *pend = e;
+		/* Otherwise, each thread gets exactly chunk_size iterations
+		   (if available) each time through the loop.  */
 
-      if (e0 == n)
-	thr->ts.static_trip = -1;
-      else
-	thr->ts.static_trip++;
-      return 0;
-    }
+		if (__builtin_expect (ws->mode, 0) == 0)
+			n = (ws->end_ull - ws->next_ull + ws->incr_ull - 1) / ws->incr_ull;
+		else
+			n = (ws->next_ull - ws->end_ull - ws->incr_ull - 1) / -ws->incr_ull;
+		i = thr->ts.team_id;
+		c = ws->chunk_size_ull;
+
+		/* Initial guess is a C sized chunk positioned nthreads iterations
+		   in, offset by our thread number.  */
+		s0 = (thr->ts.static_trip * (gomp_ull) nthreads + i) * c;
+		e0 = s0 + c;
+
+		/* Detect overflow.  */
+		if (s0 >= n)
+			return 1;
+		if (e0 > n)
+			e0 = n;
+
+		/* Transform these to the actual start and end numbers.  */
+		s = s0 * ws->incr_ull + ws->next_ull;
+		e = e0 * ws->incr_ull + ws->next_ull;
+
+		*pstart = s;
+		*pend = e;
+
+		if (e0 == n)
+			thr->ts.static_trip = -1;
+		else
+			thr->ts.static_trip++;
+		return 0;
+	}
 }
 
 
@@ -149,32 +154,33 @@ gomp_iter_ull_static_next (gomp_ull *pstart, gomp_ull *pend)
 bool
 gomp_iter_ull_dynamic_next_locked (gomp_ull *pstart, gomp_ull *pend)
 {
-  struct gomp_thread *thr = gomp_thread ();
-  struct gomp_work_share *ws = thr->ts.work_share;
-  gomp_ull start, end, chunk, left;
+	PRINT_DEBUG("IN");
+	struct gomp_thread *thr = gomp_thread ();
+	struct gomp_work_share *ws = thr->ts.work_share;
+	gomp_ull start, end, chunk, left;
 
-  start = ws->next_ull;
-  if (start == ws->end_ull)
-    return false;
+	start = ws->next_ull;
+	if (start == ws->end_ull)
+		return false;
 
-  chunk = ws->chunk_size_ull;
-  left = ws->end_ull - start;
-  if (__builtin_expect (ws->mode & 2, 0))
-    {
-      if (chunk < left)
-	chunk = left;
-    }
-  else
-    {
-      if (chunk > left)
-	chunk = left;
-    }
-  end = start + chunk;
+	chunk = ws->chunk_size_ull;
+	left = ws->end_ull - start;
+	if (__builtin_expect (ws->mode & 2, 0))
+	{
+		if (chunk < left)
+			chunk = left;
+	}
+	else
+	{
+		if (chunk > left)
+			chunk = left;
+	}
+	end = start + chunk;
 
-  ws->next_ull = end;
-  *pstart = start;
-  *pend = end;
-  return true;
+	ws->next_ull = end;
+	*pstart = start;
+	*pend = end;
+	return true;
 }
 
 
@@ -185,71 +191,72 @@ gomp_iter_ull_dynamic_next_locked (gomp_ull *pstart, gomp_ull *pend)
 bool
 gomp_iter_ull_dynamic_next (gomp_ull *pstart, gomp_ull *pend)
 {
-  struct gomp_thread *thr = gomp_thread ();
-  struct gomp_work_share *ws = thr->ts.work_share;
-  gomp_ull start, end, nend, chunk;
+	PRINT_DEBUG("IN");
+	struct gomp_thread *thr = gomp_thread ();
+	struct gomp_work_share *ws = thr->ts.work_share;
+	gomp_ull start, end, nend, chunk;
 
-  end = ws->end_ull;
-  chunk = ws->chunk_size_ull;
+	end = ws->end_ull;
+	chunk = ws->chunk_size_ull;
 
-  if (__builtin_expect (ws->mode & 1, 1))
-    {
-      gomp_ull tmp = __sync_fetch_and_add (&ws->next_ull, chunk);
-      if (__builtin_expect (ws->mode & 2, 0) == 0)
+	if (__builtin_expect (ws->mode & 1, 1))
 	{
-	  if (tmp >= end)
-	    return false;
-	  nend = tmp + chunk;
-	  if (nend > end)
-	    nend = end;
-	  *pstart = tmp;
-	  *pend = nend;
-	  return true;
+		gomp_ull tmp = __sync_fetch_and_add (&ws->next_ull, chunk);
+		if (__builtin_expect (ws->mode & 2, 0) == 0)
+		{
+			if (tmp >= end)
+				return false;
+			nend = tmp + chunk;
+			if (nend > end)
+				nend = end;
+			*pstart = tmp;
+			*pend = nend;
+			return true;
+		}
+		else
+		{
+			if (tmp <= end)
+				return false;
+			nend = tmp + chunk;
+			if (nend < end)
+				nend = end;
+			*pstart = tmp;
+			*pend = nend;
+			return true;
+		}
 	}
-      else
+
+	start = __atomic_load_n (&ws->next_ull, MEMMODEL_RELAXED);
+	while (1)
 	{
-	  if (tmp <= end)
-	    return false;
-	  nend = tmp + chunk;
-	  if (nend < end)
-	    nend = end;
-	  *pstart = tmp;
-	  *pend = nend;
-	  return true;
+		gomp_ull left = end - start;
+		gomp_ull tmp;
+
+		if (start == end)
+			return false;
+
+		if (__builtin_expect (ws->mode & 2, 0))
+		{
+			if (chunk < left)
+				chunk = left;
+		}
+		else
+		{
+			if (chunk > left)
+				chunk = left;
+		}
+		nend = start + chunk;
+
+		tmp = __sync_val_compare_and_swap (&ws->next_ull, start, nend);
+		if (__builtin_expect (tmp == start, 1))
+			break;
+
+		start = tmp;
 	}
-    }
 
-  start = __atomic_load_n (&ws->next_ull, MEMMODEL_RELAXED);
-  while (1)
-    {
-      gomp_ull left = end - start;
-      gomp_ull tmp;
-
-      if (start == end)
-	return false;
-
-      if (__builtin_expect (ws->mode & 2, 0))
-	{
-	  if (chunk < left)
-	    chunk = left;
-	}
-      else
-	{
-	  if (chunk > left)
-	    chunk = left;
-	}
-      nend = start + chunk;
-
-      tmp = __sync_val_compare_and_swap (&ws->next_ull, start, nend);
-      if (__builtin_expect (tmp == start, 1))
-	break;
-
-      start = tmp;
-    }
-
-  *pstart = start;
-  *pend = nend;
-  return true;
+	*pstart = start;
+	*pend = nend;
+	return true;
 }
 #endif /* HAVE_SYNC_BUILTINS */
 
@@ -261,34 +268,35 @@ gomp_iter_ull_dynamic_next (gomp_ull *pstart, gomp_ull *pend)
 bool
 gomp_iter_ull_guided_next_locked (gomp_ull *pstart, gomp_ull *pend)
 {
-  struct gomp_thread *thr = gomp_thread ();
-  struct gomp_work_share *ws = thr->ts.work_share;
-  struct gomp_team *team = thr->ts.team;
-  gomp_ull nthreads = team ? team->nthreads : 1;
-  gomp_ull n, q;
-  gomp_ull start, end;
+	PRINT_DEBUG("IN");
+	struct gomp_thread *thr = gomp_thread ();
+	struct gomp_work_share *ws = thr->ts.work_share;
+	struct gomp_team *team = thr->ts.team;
+	gomp_ull nthreads = team ? team->nthreads : 1;
+	gomp_ull n, q;
+	gomp_ull start, end;
 
-  if (ws->next_ull == ws->end_ull)
-    return false;
+	if (ws->next_ull == ws->end_ull)
+		return false;
 
-  start = ws->next_ull;
-  if (__builtin_expect (ws->mode, 0) == 0)
-    n = (ws->end_ull - start) / ws->incr_ull;
-  else
-    n = (start - ws->end_ull) / -ws->incr_ull;
-  q = (n + nthreads - 1) / nthreads;
+	start = ws->next_ull;
+	if (__builtin_expect (ws->mode, 0) == 0)
+		n = (ws->end_ull - start) / ws->incr_ull;
+	else
+		n = (start - ws->end_ull) / -ws->incr_ull;
+	q = (n + nthreads - 1) / nthreads;
 
-  if (q < ws->chunk_size_ull)
-    q = ws->chunk_size_ull;
-  if (q <= n)
-    end = start + q * ws->incr_ull;
-  else
-    end = ws->end_ull;
+	if (q < ws->chunk_size_ull)
+		q = ws->chunk_size_ull;
+	if (q <= n)
+		end = start + q * ws->incr_ull;
+	else
+		end = ws->end_ull;
 
-  ws->next_ull = end;
-  *pstart = start;
-  *pend = end;
-  return true;
+	ws->next_ull = end;
+	*pstart = start;
+	*pend = end;
+	return true;
 }
 
 #if defined HAVE_SYNC_BUILTINS && defined __LP64__
@@ -298,48 +306,86 @@ gomp_iter_ull_guided_next_locked (gomp_ull *pstart, gomp_ull *pend)
 bool
 gomp_iter_ull_guided_next (gomp_ull *pstart, gomp_ull *pend)
 {
-  struct gomp_thread *thr = gomp_thread ();
-  struct gomp_work_share *ws = thr->ts.work_share;
-  struct gomp_team *team = thr->ts.team;
-  gomp_ull nthreads = team ? team->nthreads : 1;
-  gomp_ull start, end, nend, incr;
-  gomp_ull chunk_size;
+	PRINT_DEBUG("IN");
+	struct gomp_thread *thr = gomp_thread ();
+	struct gomp_work_share *ws = thr->ts.work_share;
+	struct gomp_team *team = thr->ts.team;
+	gomp_ull nthreads = team ? team->nthreads : 1;
+	gomp_ull start, end, nend, incr;
+	gomp_ull chunk_size;
 
-  start = __atomic_load_n (&ws->next_ull, MEMMODEL_RELAXED);
-  end = ws->end_ull;
-  incr = ws->incr_ull;
-  chunk_size = ws->chunk_size_ull;
+	start = __atomic_load_n (&ws->next_ull, MEMMODEL_RELAXED);
+	end = ws->end_ull;
+	incr = ws->incr_ull;
+	chunk_size = ws->chunk_size_ull;
 
-  while (1)
-    {
-      gomp_ull n, q;
-      gomp_ull tmp;
+	while (1)
+	{
+		gomp_ull n, q;
+		gomp_ull tmp;
 
-      if (start == end)
-	return false;
+		if (start == end)
+			return false;
 
-      if (__builtin_expect (ws->mode, 0) == 0)
-	n = (end - start) / incr;
-      else
-	n = (start - end) / -incr;
-      q = (n + nthreads - 1) / nthreads;
+		if (__builtin_expect (ws->mode, 0) == 0)
+			n = (end - start) / incr;
+		else
+			n = (start - end) / -incr;
+		q = (n + nthreads - 1) / nthreads;
 
-      if (q < chunk_size)
-	q = chunk_size;
-      if (__builtin_expect (q <= n, 1))
-	nend = start + q * incr;
-      else
-	nend = end;
+		if (q < chunk_size)
+			q = chunk_size;
+		if (__builtin_expect (q <= n, 1))
+			nend = start + q * incr;
+		else
+			nend = end;
 
-      tmp = __sync_val_compare_and_swap (&ws->next_ull, start, nend);
-      if (__builtin_expect (tmp == start, 1))
-	break;
+		tmp = __sync_val_compare_and_swap (&ws->next_ull, start, nend);
+		if (__builtin_expect (tmp == start, 1))
+			break;
 
-      start = tmp;
-    }
+		start = tmp;
+	}
 
-  *pstart = start;
-  *pend = nend;
-  return true;
+	*pstart = start;
+	*pend = nend;
+	return true;
 }
+
+
+bool
+gomp_iter_ull_hierarchical_next (gomp_ull *pstart, gomp_ull *pend)
+{
+	PRINT_DEBUG("IN");
+	struct gomp_thread *thr = gomp_thread ();
+	struct gomp_work_share *ws = thr->ts.work_share;
+	struct gomp_team *team = thr->ts.team;
+	unsigned long nthreads = team ? team->nthreads : 1;
+	gomp_ull start, end, chunk, incr;
+
+	start = ws->next_ull;
+	end = ws->end_ull;
+	incr = ws->incr_ull;
+	chunk = ws->chunk_size_ull;
+
+	if ((thr->ts.level > 1) || (nthreads == 1))    // We don't support nested parallelism.
+	{
+		if (thr->ts.team_id == 0)   // team master
+		{
+			*pstart = start;
+			*pend = end;
+			ws->next = end;
+			PRINT_DEBUG("OUT");
+			return start != end;
+		}
+		else
+		{
+			PRINT_DEBUG("OUT");
+			return false;
+		}
+	}
+
+	return gomp_iter_l_ull_hierarchical_next(chunk, start, end, incr, (long long *) pstart, (long long *) pend);
+}
+
 #endif /* HAVE_SYNC_BUILTINS */

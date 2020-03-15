@@ -21,6 +21,9 @@ along with GCC; see the file COPYING3.  If not see
   enumerator,
 #define DEFPARAMENUM5(enumerator, option, nocmsgid, default, \
 		      v0, v1, v2, v3, v4) enumerator,
+#define DEFPARAMENUM6(enumerator, option, nocmsgid, default, \
+		      v0, v1, v2, v3, v4, v5) enumerator,
 #include "params.def"
 #undef DEFPARAM
 #undef DEFPARAMENUM5
+#undef DEFPARAMENUM6
